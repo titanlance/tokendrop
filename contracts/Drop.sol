@@ -1,4 +1,4 @@
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.0;
 // SPDX-License-Identifier: MIT
 /**
  * @title Contract for Fast Lumerin Token Widthdrawl
@@ -7,59 +7,58 @@ pragma solidity ^0.8.7;
  *
  * @author Lance Seidman (Titan Mining/Lumerin Protocol)
 */
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract FastLumerinDrop {
     address public owner;
-    uint256 public balance;
-    address[] public addressList;
-    IERC20 Lumerin = IERC20(0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99);
+    mapping(address => uint) public people;
+    IERC20 Lumerin = IERC20(0x5A86858aA3b595FD6663c2296741eF4cd8BC4d01);
 
-    mapping(address => bool) public whitelisted;
-    mapping(address => WalletWhitelist) public walletWhitelist;
-
-    event NewWallet(address sender, address newAddress);
     event TransferReceived(address _from, uint _amount);
     event TransferSent(address _from, address _destAddr, uint _amount);
+    event MSG(string _message);
 
-    struct WalletWhitelist {
-        bool theAddress;
+    struct User {
+        address wallet;
+        uint qty;
     }
-
     constructor() {
         owner = msg.sender;
     }
-
-    modifier onlyOwner() {
-      require(msg.sender == owner, "Ownable: caller is not the owner");
-      _;
+    function addWallet (address walletAddr, uint _qty) public {
+        people[walletAddr] = _qty;
     }
-    
-    receive() payable external {
-        balance += msg.value;
-        emit TransferReceived(msg.sender, msg.value);
-    }    
-
-    function getWalletCount() public view returns(uint count) {
-        return addressList.length;
+    function updateWallet (address walletAddr, uint _qty) public {
+        people[walletAddr] = _qty;
     }
-    function addWalletAddress(address newAddress) public returns(bool success) {
-        addressList.push(newAddress);
-        walletWhitelist[newAddress].theAddress = true;
-        emit NewWallet(msg.sender, newAddress);
-        return true;
+    function checkWallet (address walletAddress) public view returns (uint) {
+        return people[walletAddress];
     }
-
     function VestingTokenBalance() view public returns (uint) {
         return Lumerin.balanceOf(address(this));
     }
+    function Claim() public {
+        address incoming = msg.sender;
+        require(checkWallet(incoming) > 0, 'Must be whitelisted!');
 
-    function TransferLumerin(address to, uint256 amount) public {
+        if(checkWallet(incoming) > 0 ) {
+            // For Development...
+            emit MSG('Exists!');
+            Lumerin.transfer(incoming, people[incoming]);
+            emit TransferSent(incoming, incoming, people[incoming]);
+
+            updateWallet(incoming,0);
+        }
+        else {
+            emit MSG('Not Whitelisted!');
+        }
+    } 
+    function TransferLumerin(address to, uint amount) public {
         require(msg.sender == owner, "Vesting Contract Owner can transfer Tokens, not you!"); 
         uint256 LumerinBalance = Lumerin.balanceOf(address(this));
         require(amount <= LumerinBalance, "Token balance is low!");
-        Lumerin.transfer(to, amount);
-        emit TransferSent(msg.sender, to, amount);
-    }    
 
+        Lumerin.transfer(to, amount);
+        emit TransferSent(msg.sender, to, people[to]);
+    }    
 }
