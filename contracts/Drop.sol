@@ -10,17 +10,18 @@ pragma solidity ^0.8.0;
 */
 contract FastLumerinDrop {
     address public owner;
-    mapping(address => uint) public people;
     IERC20 Lumerin = IERC20(0x5A86858aA3b595FD6663c2296741eF4cd8BC4d01);
 
     event TransferReceived(address _from, uint _amount);
     event TransferSent(address _from, address _destAddr, uint _amount);
     event MSG(string _message);
 
-    struct User {
+    struct Whitelist {
         address wallet;
         uint qty;
     }
+    mapping(address => Whitelist) public whitelist;
+
     constructor() {
         owner = msg.sender;
     }
@@ -32,32 +33,36 @@ contract FastLumerinDrop {
         emit TransferReceived(msg.sender, msg.value);
     }    
     function addWallet (address walletAddr, uint _qty) public {
-        people[walletAddr] = _qty;
+        whitelist[walletAddr].wallet = walletAddr;
+        whitelist[walletAddr].qty = _qty;
+    }
+    function addMultiWallet (address[] memory walletAddr, uint[] memory _qty) external onlyOwner {
+        for (uint i=0; i< walletAddr.length; i++) {
+            whitelist[walletAddr[i]].wallet = walletAddr[i]; 
+            whitelist[walletAddr[i]].qty = _qty[i]; 
+        }
     }
     function updateWallet (address walletAddr, uint _qty) public {
-        people[walletAddr] = _qty;
+        whitelist[walletAddr].qty = _qty;
     }
-    function checkWallet (address walletAddress) public view returns (uint) {
-        return people[walletAddress];
+    function checkWallet (address walletAddress) public view returns (bool status) {
+        if(whitelist[walletAddress].wallet == walletAddress) {
+            status = true;
+        }
+        return status;
     }
     function VestingTokenBalance() view public returns (uint) {
         return Lumerin.balanceOf(address(this));
     }
     function Claim() public {
         address incoming = msg.sender;
-        require(checkWallet(incoming) > 0, 'Must be whitelisted!');
-
-        if(checkWallet(incoming) > 0 ) {
+        require(whitelist[incoming].qty > 0, 'Must be whitelisted!');
             // For Development...
             emit MSG('Exists!');
-            Lumerin.transfer(incoming, people[incoming]);
-            emit TransferSent(incoming, incoming, people[incoming]);
+            Lumerin.transfer(incoming, whitelist[incoming].qty);
+            emit TransferSent(incoming, incoming, whitelist[incoming].qty);
 
             updateWallet(incoming,0);
-        }
-        else {
-            emit MSG('Not Whitelisted!');
-        }
     } 
     function TransferLumerin(address to, uint amount) public onlyOwner{
         require(msg.sender == owner, "Vesting Contract Owner can transfer Tokens, not you!"); 
@@ -65,6 +70,6 @@ contract FastLumerinDrop {
         require(amount <= LumerinBalance, "Token balance is low!");
 
         Lumerin.transfer(to, amount);
-        emit TransferSent(msg.sender, to, people[to]);
-    }    
+        emit TransferSent(msg.sender, to, whitelist[to].qty);
+    }  
 }
