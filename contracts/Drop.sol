@@ -13,7 +13,7 @@ contract FastLumerinDrop {
     address public owner;
     uint walletCount;
  
-    IERC20 Lumerin = IERC20(0xA24eCB5873D9dc76bA1cFED82B2A61831375AC72);
+    IERC20 Lumerin = IERC20(0x0);
 
     event TransferReceived(address _from, uint _amount);
     event TransferSent(address _from, address _destAddr, uint _amount);
@@ -46,7 +46,7 @@ contract FastLumerinDrop {
         }
     }
     function updateWallet (address walletAddr, uint _qty) internal {
-        require(walletAddr == msg.sender, 'Unable to update wallet!');
+        require(walletAddr != msg.sender, 'Unable to update wallet!');
         whitelist[walletAddr].qty = _qty;
     }
     function updateWallets (address walletAddr, uint _qty) external onlyOwner {
