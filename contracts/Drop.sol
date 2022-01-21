@@ -7,22 +7,25 @@ pragma solidity ^0.8.0;
  *
  * @author Lance Seidman (Titan Mining/Lumerin Protocol)
 */
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract FastLumerinDrop {
+
     address public owner;
-    IERC20 Lumerin = IERC20(0x0);
+    uint walletCount;
+ 
+    IERC20 Lumerin = IERC20(0xA24eCB5873D9dc76bA1cFED82B2A61831375AC72);
 
     event TransferReceived(address _from, uint _amount);
     event TransferSent(address _from, address _destAddr, uint _amount);
-    event MSG(string _message);
 
     struct Whitelist {
         address wallet;
         uint qty;
     }
     mapping(address => Whitelist) public whitelist;
-
     constructor() {
-        owner = msg.sender;
+        owner = msg.sender;      
+                                                                                                                                                                                                                                                                                                                  
     }
     modifier onlyOwner() {
       require(msg.sender == owner, "Sorry, only owner of this contract can perform this task!");
@@ -38,10 +41,15 @@ contract FastLumerinDrop {
     function addMultiWallet (address[] memory walletAddr, uint[] memory _qty) external onlyOwner {
         for (uint i=0; i< walletAddr.length; i++) {
             whitelist[walletAddr[i]].wallet = walletAddr[i]; 
-            whitelist[walletAddr[i]].qty = _qty[i]; 
+            whitelist[walletAddr[i]].qty = _qty[i];
+            walletCount++;
         }
     }
-    function updateWallet (address walletAddr, uint _qty) public onlyOwner {
+    function updateWallet (address walletAddr, uint _qty) internal {
+        require(walletAddr == msg.sender, 'Unable to update wallet!');
+        whitelist[walletAddr].qty = _qty;
+    }
+    function updateWallets (address walletAddr, uint _qty) external onlyOwner {
         whitelist[walletAddr].qty = _qty;
     }
     function checkWallet (address walletAddress) external view returns (bool status) {
@@ -55,12 +63,10 @@ contract FastLumerinDrop {
     }
     function Claim() external {
         address incoming = msg.sender;
-        require(whitelist[incoming].qty > 0, 'Must be whitelisted!');
-            // For Development...
-            emit MSG('Exists!');
+        require(whitelist[incoming].qty > 0, 'Must be whitelisted with an active Claim amount!');
             Lumerin.transfer(incoming, whitelist[incoming].qty);
             emit TransferSent(incoming, incoming, whitelist[incoming].qty);
-
+            
             updateWallet(incoming,0);
     } 
     function TransferLumerin(address to, uint amount) external onlyOwner{
