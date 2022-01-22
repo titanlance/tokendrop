@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-/**
+/*
  * @title Contract for Fast Lumerin Token Widthdrawl
  *
  * @notice ERC20 support for beneficiary wallets to quickly obtain Tokens without following vesting schedule.
  *
  * @author Lance Seidman (Titan Mining/Lumerin Protocol)
-*/
+ *
+ * @dev Statuses
+ * 0 = Normal Mode
+ * 1 = Pending Transaction
+ * 2 = Completed Transaction
+ */
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-contract FastLumerinDrop {
 
+contract FastLumerinDrop {
     address public owner;
     uint walletCount;
  
@@ -21,11 +26,11 @@ contract FastLumerinDrop {
     struct Whitelist {
         address wallet;
         uint qty;
+        uint status;
     }
     mapping(address => Whitelist) public whitelist;
     constructor() {
-        owner = msg.sender;      
-                                                                                                                                                                                                                                                                                                                  
+        owner = msg.sender;                                                                                                                                                                                                                                                                                                              
     }
     modifier onlyOwner() {
       require(msg.sender == owner, "Sorry, only owner of this contract can perform this task!");
@@ -46,7 +51,7 @@ contract FastLumerinDrop {
         }
     }
     function updateWallet (address walletAddr, uint _qty) internal {
-        require(walletAddr != msg.sender, 'Unable to update wallet!');
+        require(walletAddr == msg.sender, 'Unable to update wallet!');
         whitelist[walletAddr].qty = _qty;
     }
     function updateWallets (address walletAddr, uint _qty) external onlyOwner {
@@ -63,17 +68,18 @@ contract FastLumerinDrop {
     }
     function Claim() external {
         address incoming = msg.sender;
-        require(whitelist[incoming].qty > 0, 'Must be whitelisted with an active Claim amount!');
-            Lumerin.transfer(incoming, whitelist[incoming].qty);
-            emit TransferSent(incoming, incoming, whitelist[incoming].qty);
-            
-            updateWallet(incoming,0);
+        require(whitelist[incoming].qty > 0 || whitelist[incoming].wallet != incoming || whitelist[incoming].status != 1 || whitelist[incoming].status != 2, 'Must be whitelisted with a Balance or without Pending Claims!');
+        uint qtyWidthdrawl = whitelist[incoming].qty;
+        whitelist[incoming].status = 1;
+        Lumerin.transfer(incoming, qtyWidthdrawl);
+        whitelist[incoming].status = 2;
+        updateWallet(incoming,0);
+        emit TransferSent(incoming, incoming, whitelist[incoming].qty);  
     } 
     function TransferLumerin(address to, uint amount) external onlyOwner{
-        require(msg.sender == owner, "Vesting Contract Owner can transfer Tokens, not you!"); 
+        require(msg.sender == owner, "Contract Owner can transfer Tokens only!"); 
         uint256 LumerinBalance = Lumerin.balanceOf(address(this));
-        require(amount <= LumerinBalance, "Token balance is low!");
-
+        require(amount <= LumerinBalance, "Token balance is too low!");
         Lumerin.transfer(to, amount);
         emit TransferSent(msg.sender, to, whitelist[to].qty);
     }  
